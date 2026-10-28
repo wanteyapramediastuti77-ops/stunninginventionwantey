@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Tarik Tambang: Simple Present Tense</title>
+    <style>
+        :root {
+            --grass-color: #4CAF50;
+            --sky-color: #87CEEB;
+            --rope-color: #8B4513;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--sky-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        /* AREA PERMAINAN */
+        .game-container {
+            position: relative;
+            width: 90%;
+            max-width: 800px;
+            height: 300px;
+            background: linear-gradient(to bottom, transparent 60%, var(--grass-color) 60%);
+            border: 4px solid #333;
+            border-radius: 10px;
+            margin: 20px auto;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        /* GARIS TENGAH & BATAS */
+        .center-line {
+            position: absolute;
+            left: 50%;
+            top: 60%;
+            bottom: 0;
+            width: 4px;
+            background-color: white;
+            transform: translateX(-50%);
+            z-index: 1;
+        }
+
+        .win-zone-left, .win-zone-right {
+            position: absolute;
+            top: 60%;
+            bottom: 0;
+            width: 10%;
+            opacity: 0.3;
+        }
+        .win-zone-left { left: 0; background-color: blue; }
+        .win-zone-right { right: 0; background-color: red; }
+
+        /* TALI & GRUP */
+        .rope-system {
+            position: absolute;
+            top: 55%;
+            left: 50%; /* Mulai dari tengah */
+            width: 0;
+            height: 10px;
+            transform: translateX(-50%);
+            transition: left 0.8s cubic-bezier(0.25, 1, 0.5, 1); /* Animasi geser */
+            z-index: 10;
+        }
+
+        .rope {
+            position: absolute;
+            top: 0;
+            left: -200px; /* Panjang tali visual */
+            width: 400px;
+            height: 10px;
+            background: repeating-linear-gradient(90deg, var(--rope-color), var(--rope-color) 10px, #A0522D 10px, #A0522D 20px);
+            border-radius: 5px;
+        }
+
+        /* KARAKTER (EMOJI) */
+        .team {
+            position: absolute;
+            top: -60px;
+            font-size: 60px;
+            user-select: none;
+        }
+
+        .team-student {
+            left: -240px; /* Di kiri tali */
+            transform: scaleX(-1); /* Menghadap kanan */
+        }
+
+        .team-cpu {
+            right: -240px; /* Di kanan tali */
+        }
+
+        /* LABEL TIM */
+        .score-board {
+            display: flex;
+            justify-content: space-between;
+            width: 90%;
+            max-width: 800px;
+            font-weight: bold;
+            color: #333;
+            font-size: 1.2rem;
+        }
+
+        /* PANEL SOAL */
+        .quiz-panel {
+            background: white;
+            width: 90%;
+            max-width: 600px;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            text-align: center;
+            z-index: 20;
+        }
+
+        .question-text {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        button.option-btn {
+            padding: 15px;
+            font-size: 1rem;
+            border: 2px solid #ddd;
+            background: #f9f9f9;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button.option-btn:hover {
+            background: #e0e0e0;
+            border-color: #bbb;
+        }
+
+        /* MODAL HASIL */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .modal h2 { margin-top: 0; }
+        
+        .restart-btn {
+            background: var(--grass-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1.1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .options-grid { grid-template-columns: 1fr; }
+            .team { font-size: 40px; top: -45px; }
+            .team-student { left: -180px; }
+            .team-cpu { right: -180px; }
+            .rope { width: 300px; left: -150px; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🪢 Tarik Tambang Grammar</h1>
+    
+    <div class="score-board">
+        <span style="color: blue;">👨‍🎓 Siswa (Kamu)</span>
+        <span>VS</span>
+        <span style="color: red;">🤖 Komputer</span>
+    </div>
+
+    <!-- Area Visual Game -->
+    <div class="game-container">
+        <div class="win-zone-left"></div>
+        <div class="center-line"></div>
+        <div class="win-zone-right"></div>
+
+        <!-- Grup Tali yang akan bergeser -->
+        <div class="rope-system" id="ropeSystem">
+            <div class="rope"></div>
+            <div class="team team-student">🏃‍♂️</div>
+            <div class="team team-cpu">🤖</div>
+        </div>
+    </div>
+
+    <!-- Panel Pertanyaan -->
+    <div class="quiz-panel" id="quizPanel">
+        <div id="questionNumber" style="font-size: 0.9rem; color: gray; margin-bottom: 5px;">Soal 1 / 5</div>
+        <div class="question-text" id="questionText">Loading...</div>
+        <div class="options-grid" id="optionsContainer">
+            <!-- Tombol jawaban akan muncul di sini -->
+        </div>
+    </div>
+
+    <!-- Modal Hasil Akhir -->
+    <div class="modal" id="resultModal">
+        <div class="modal-content">
+            <h2 id="resultTitle">Hasil</h2>
+            <p id="resultMessage">Pesan</p>
+            <button class="restart-btn" onclick="restartGame()">Main Lagi</button>
+        </div>
+    </div>
+
+    <script>
+        // DATA SOAL SIMPLE PRESENT TENSE (SMK KELAS 10)
+        const questions = [
+            {
+                question: "She ______ to school every day.",
+                options: ["go", "goes", "going", "gone"],
+                answer: 1 // Index jawaban benar (goes)
+            },
+            {
+                question: "They ______ football in the afternoon. (+)",
+                options: ["doesn't play", "don't play", "not play", "no play"],
+                answer: 1 // don't play (Negatif)
+            },
+            {
+                question: "______ your brother like spicy food?",
+                options: ["Do", "Does", "Is", "Are"],
+                answer: 1 // Does (Interogatif)
+            },
+            {
+                question: "My father ______ coffee every morning.",
+                options: ["drink", "drinks", "drinking", "is drink"],
+                answer: 1 // drinks
+            },
+            {
+                question: "We ______ late for class. (-)",
+                options: ["aren't", "isn't", "don't", "doesn't"],
+                answer: 0 // aren't (To be negative)
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        // Posisi tali: 50% adalah tengah. 
+        // Kurang dari 50% = Kiri (Siswa menang), Lebih dari 50% = Kanan (CPU menang)
+        let ropePosition = 50; 
+        const SHIFT_AMOUNT = 10; // Berapa persen tali bergeser per jawaban
+
+        const ropeSystem = document.getElementById('ropeSystem');
+        const questionText = document.getElementById('questionText');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const questionNumber = document.getElementById('questionNumber');
+        const resultModal = document.getElementById('resultModal');
+        const resultTitle = document.getElementById('resultTitle');
+        const resultMessage = document.getElementById('resultMessage');
+
+        function loadQuestion() {
+            if (currentQuestionIndex >= questions.length) {
+                endGame();
+                return;
+            }
+
+            const q = questions[currentQuestionIndex];
+            questionNumber.innerText = `Soal ${currentQuestionIndex + 1} / ${questions.length}`;
+            questionText.innerText = q.question;
+            optionsContainer.innerHTML = '';
+
+            q.options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt;
+                btn.onclick = () => checkAnswer(index);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selectedIndex) {
+            const correctIndex = questions[currentQuestionIndex].answer;
+
+            if (selectedIndex === correctIndex) {
+                // BENAR -> Tali ke KIRI (Posisi berkurang)
+                ropePosition -= SHIFT_AMOUNT;
+                animateRope();
+                // Efek visual benar (opsional)
+            } else {
+                // SALAH -> Tali ke KANAN (Posisi bertambah)
+                ropePosition += SHIFT_AMOUNT;
+                animateRope();
+            }
+
+            currentQuestionIndex++;
+            
+            // Cek apakah game selesai karena posisi ekstrem sebelum soal habis?
+            // Sesuai request: "Jika semua pertanyaan dijawab benar maka siswa menang"
+            // Jadi kita lanjutkan sampai soal habis, baru cek posisi akhir.
+            
+            setTimeout(() => {
+                loadQuestion();
+            }, 600); // Delay sedikit biar lihat tali bergerak
+        }
+
+        function animateRope() {
+            // Batas agar tidak keluar layar terlalu jauh
+            if(ropePosition < 10) ropePosition = 10;
+            if(ropePosition > 90) ropePosition = 90;
+
+            ropeSystem.style.left = ropePosition + '%';
+        }
+
+        function endGame() {
+            // Logika Kemenangan:
+            // Karena ada 5 soal dan shift 10%, jika benar semua posisi jadi 0% (50 - 50).
+            // Jika salah 1, posisi jadi 10% (masih kiri tapi tidak mentok).
+            // Kita buat syarat menang ketat: Posisi harus <= 0 (atau mendekati batas kiri)
+            
+            // Namun, karena logika di atas dibatasi min 10%, 
+            // Mari kita hitung skor benar saja untuk menentukan pesan, 
+            // tapi animasi tali tetap menunjukkan dominasi.
+            
+            let correctCount = 5 - ((ropePosition - 50) / SHIFT_AMOUNT); 
+            // Rumus balik: Pos = 50 + (Salah * 10) - (Benar * 10) ... agak rumit.
+            // Simpelnya: Kalau ropePosition == 0 (mentok kiri) = Menang Sempurna.
+            
+            // Revisi Logika Animasi untuk Win Condition Request User:
+            // User minta: "Jika semua benar -> Menang".
+            // Jika ropePosition <= 10 (Mentok Kiri)
+            
+            let title = "";
+            let msg = "";
+
+            if (ropePosition <= 10) { // Mentok Kiri (Benar Semua atau hampir semua)
+                // Tapi secara matematis kalau salah 1, posisinya 10% (karena start 50, -10*5 = 0, kalau salah 1 jadi +10 = 10)
+                // Agar adil, kita cek apakah benar-benar sempurna.
+                // Start 50. 5 Benar = 50 - 50 = 0.
+                // 4 Benar 1 Salah = 50 - 40 + 10 = 20.
+                // Jadi kalau position == 0, pasti benar semua.
+                
+                // Karena saya batasi min 10 di animateRope(), mari ubah logic endgame:
+                // Hitung manual score lebih akurat.
+            }
+            
+            // Cara paling akurat: Hitung ulang berdasarkan index dan posisi visual hanyalah efek.
+            // Tapi user ingin visual tali menentukan.
+            // Mari kita buka batas animateRope() untuk mengecek win condition murni.
+            
+            // REVISI animateRope agar bisa menyentuh 0% dan 100%
+            // (Sudah dihandle di endGame check)
+            
+            if (ropePosition === 0) {
+                title = "🎉 LUAR BIASA! 🎉";
+                msg = "Kamu menjawab SEMUA soal dengan benar! Tim Siswa menang telak melawan Komputer!";
+                confettiEffect();
+            } else if (ropePosition < 50) {
+                title = "Menang Tipis 😅";
+                msg = "Kamu menang, tapi masih ada jawaban yang salah. Belajar lagi ya!";
+            } else if (ropePosition === 50) {
+                title = "Seri 🤝";
+                msg = "Kemampuanmu seimbang dengan komputer.";
+            } else {
+                title = "Kalah 😢";
+                msg = "Komputer menarik tali lebih kuat. Ayo ulangi dan perbaiki grammar-mu!";
+            }
+
+            resultTitle.innerText = title;
+            resultMessage.innerText = msg;
+            resultModal.style.display = 'flex';
+        }
+
+        function restartGame() {
+            currentQuestionIndex = 0;
+            ropePosition = 50;
+            ropeSystem.style.left = '50%';
+            resultModal.style.display = 'none';
+            loadQuestion();
+        }
+
+        // Efek Confetti Sederhana (CSS/JS)
+        function confettiEffect() {
+            // Hanya placeholder, bisa ditambahkan library canvas confetti jika mau
+            document.body.style.backgroundColor = "#FFD700"; // Emas
+            setTimeout(() => {
+                document.body.style.backgroundColor = "var(--sky-color)";
+            }, 1000);
+        }
+
+        // Fix animateRope agar bisa mencapai 0% untuk deteksi menang sempurna
+        function animateRope() {
+            // Tidak dikasih clamp (batas) dulu agar logika endgame akurat
+            // Tapi视觉上 jangan sampai hilang
+            let visualPos = ropePosition;
+            if(visualPos < 5) visualPos = 5;
+            if(visualPos > 95) visualPos = 95;
+            
+            ropeSystem.style.left = visualPos + '%';
+        }
+
+        // Mulai Game
+        loadQuestion();
+
+    </script>
+</body>
+</html>
