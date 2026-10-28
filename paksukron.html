@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Memory Card Match: Synonym & Antonym</title>
+    <style>
+        /* --- CSS VARIABLES & RESET --- */
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --neon-blue: #06b6d4;
+            --neon-pink: #ec4899;
+            --neon-green: #22c55e;
+            --text-main: #f8fafc;
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 20%);
+        }
+
+        /* --- HEADER & CONTROLS --- */
+        header { text-align: center; margin-bottom: 20px; }
+        h1 {
+            font-size: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(to right, var(--neon-blue), var(--neon-pink));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+        }
+
+        .controls {
+            display: flex; gap: 15px; justify-content: center; align-items: center;
+            flex-wrap: wrap; margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            padding: 8px 20px; border-radius: 20px; border: 1px solid var(--glass);
+            background: var(--glass); color: var(--text-main); cursor: pointer;
+            transition: all 0.3s ease; font-weight: bold; backdrop-filter: blur(5px);
+        }
+        .mode-btn.active {
+            background: var(--neon-blue); border-color: var(--neon-blue);
+            box-shadow: 0 0 15px var(--neon-blue); color: #000;
+        }
+        .mode-btn:hover:not(.active) { background: rgba(255,255,255,0.1); }
+
+        .stats {
+            display: flex; gap: 30px; font-size: 1.1rem; font-weight: 600;
+            background: var(--glass); padding: 10px 25px; border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px;
+        }
+        .stat-item span { color: var(--neon-pink); }
+
+        /* --- GAME GRID --- */
+        .grid-container {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 12px; width: 90vmin; max-width: 500px; aspect-ratio: 1;
+            perspective: 1000px;
+        }
+
+        /* --- CARD STYLES & 3D FLIP --- */
+        .card {
+            position: relative; cursor: pointer; transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+            border-radius: 12px; aspect-ratio: 1;
+        }
+        .card.flipped { transform: rotateY(180deg); }
+        .card.matched { pointer-events: none; }
+        .card.matched .card-front { 
+            border-color: var(--neon-green); 
+            box-shadow: 0 0 20px var(--neon-green), inset 0 0 10px rgba(34,197,94,0.2);
+        }
+
+        .card-face {
+            position: absolute; width: 100%; height: 100%;
+            backface-visibility: hidden; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: clamp(0.8rem, 3vmin, 1.2rem); font-weight: bold;
+            text-align: center; padding: 5px; word-break: break-word;
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .card-back {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: var(--neon-blue); font-size: 2rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .card-back::after { content: "?"; opacity: 0.5; }
+
+        .card-front {
+            background: rgba(255,255,255,0.08);
+            transform: rotateY(180deg);
+            color: white; backdrop-filter: blur(10px);
+            border-color: var(--neon-blue);
+        }
+
+        /* --- MODAL --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center;
+            z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            backdrop-filter: blur(5px);
+        }
+        .modal-overlay.show { opacity: 1; pointer-events: auto; }
+        
+        .modal-content {
+            background: var(--card-bg); padding: 40px; border-radius: 20px;
+            text-align: center; border: 1px solid var(--neon-blue);
+            box-shadow: 0 0 40px rgba(6,182,212,0.3); max-width: 90%;
+            transform: scale(0.8); transition: transform 0.3s;
+        }
+        .modal-overlay.show .modal-content { transform: scale(1); }
+        
+        .modal-title { font-size: 2rem; color: var(--neon-green); margin-bottom: 10px; }
+        .modal-stats { margin: 20px 0; font-size: 1.2rem; line-height: 1.8; }
+        .restart-btn {
+            padding: 12px 35px; font-size: 1.1rem; font-weight: bold;
+            background: var(--neon-pink); border: none; border-radius: 30px;
+            color: white; cursor: pointer; margin-top: 10px;
+            box-shadow: 0 0 20px rgba(236,72,153,0.4); transition: transform 0.2s;
+        }
+        .restart-btn:hover { transform: scale(1.05); }
+
+        @media (max-width: 400px) {
+            .grid-container { gap: 8px; }
+            h1 { font-size: 1.5rem; }
+            .stats { gap: 15px; font-size: 0.9rem; padding: 8px 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Memory Match</h1>
+    <div class="controls">
+        <button class="mode-btn active" data-mode="synonym" onclick="setMode('synonym')">Synonyms</button>
+        <button class="mode-btn" data-mode="antonym" onclick="setMode('antonym')">Antonyms</button>
+    </div>
+</header>
+
+<div class="stats">
+    <div class="stat-item">⏱️ <span id="timer">00:00</span></div>
+    <div class="stat-item">🎯 Moves: <span id="moves">0</span></div>
+</div>
+
+<div class="grid-container" id="grid"></div>
+
+<!-- Victory Modal -->
+<div class="modal-overlay" id="modal">
+    <div class="modal-content">
+        <div class="modal-title">🎉 Excellent!</div>
+        <div class="modal-stats">
+            Time: <span id="final-time" style="color:var(--neon-blue)">00:00</span><br>
+            Moves: <span id="final-moves" style="color:var(--neon-pink)">0</span>
+        </div>
+        <button class="restart-btn" onclick="initGame()">Play Again</button>
+    </div>
+</div>
+
+<script>
+/**
+ * DATA KOSA KATA
+ */
+const VOCAB = {
+    synonym: [
+        ["Big", "Huge"], ["Happy", "Joyful"], ["Fast", "Quick"], ["Smart", "Clever"],
+        ["Brave", "Bold"], ["Rich", "Wealthy"], ["Sad", "Gloomy"], ["Start", "Begin"]
+    ],
+    antonym: [
+        ["Hot", "Cold"], ["Light", "Dark"], ["Love", "Hate"], ["Win", "Lose"],
+        ["Full", "Empty"], ["Soft", "Hard"], ["Open", "Shut"], ["Rise", "Fall"]
+    ]
+};
+
+/**
+ * AUDIO SYSTEM (Web Audio API - No External Files)
+ */
+const AudioSys = (() => {
+    let ctx = null;
+    const init = () => { if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)(); };
+    
+    const tone = (freq, type, dur, vol = 0.1, delay = 0) => {
+        if (!ctx) return;
+        const t = ctx.currentTime + delay;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, t);
+        gain.gain.setValueAtTime(vol, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + dur);
+    };
+
+    return {
+        init,
+        click: () => tone(800, 'sine', 0.08, 0.08),
+        flip: () => tone(400, 'triangle', 0.1, 0.06),
+        match: () => { tone(523, 'sine', 0.15, 0.15); tone(659, 'sine', 0.15, 0.15, 0.1); },
+        wrong: () => tone(200, 'sawtooth', 0.2, 0.08),
+        win: () => {
+            [523, 659, 784, 1047, 784, 1047].forEach((f, i) => 
+                tone(f, 'square', 0.2, 0.1, i * 0.12)
+            );
+        }
+    };
+})();
+
+/**
+ * GAME STATE & LOGIC
+ */
+let state = {
+    mode: 'synonym',
+    cards: [],
+    flippedCards: [],
+    matchedPairs: 0,
+    moves: 0,
+    timer: 0,
+    timerInterval: null,
+    isLocked: false,
+    gameStarted: false
+};
+
+const gridEl = document.getElementById('grid');
+const timerEl = document.getElementById('timer');
+const movesEl = document.getElementById('moves');
+const modalEl = document.getElementById('modal');
+
+// Format waktu MM:SS
+const formatTime = (s) => {
+    const m = String(Math.floor(s / 60)).padStart(2, '0');
+    const sec = String(s % 60).padStart(2, '0');
+    return `${m}:${sec}`;
+};
+
+function setMode(mode) {
+    state.mode = mode;
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+    AudioSys.init();
+    AudioSys.click();
+    initGame();
+}
+
+function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+function initGame() {
+    // Reset State
+    clearInterval(state.timerInterval);
+    state = { ...state, cards: [], flippedCards: [], matchedPairs: 0, moves: 0, timer: 0, isLocked: false, gameStarted: false };
+    timerEl.textContent = "00:00";
+    movesEl.textContent = "0";
+    modalEl.classList.remove('show');
+
+    // Pilih 8 pasangan dari mode yang aktif
+    const pairs = shuffle(VOCAB[state.mode]).slice(0, 8);
+    
+    // Buat kartu: setiap pasangan jadi 2 kartu dengan pairId yang sama
+    let deck = [];
+    pairs.forEach((pair, idx) => {
+        deck.push({ id: idx * 2, pairId: idx, text: pair[0] });
+        deck.push({ id: idx * 2 + 1, pairId: idx, text: pair[1] });
+    });
+    deck = shuffle(deck);
+    state.cards = deck;
+
+    // Render Grid
+    gridEl.innerHTML = '';
+    deck.forEach(card => {
+        const el = document.createElement('div');
+        el.className = 'card';
+        el.dataset.id = card.id;
+        el.innerHTML = `
+            <div class="card-face card-back"></div>
+            <div class="card-face card-front">${card.text}</div>
+        `;
+        el.addEventListener('click', () => handleCardClick(el, card));
+        gridEl.appendChild(el);
+    });
+}
+
+function startTimer() {
+    if (state.gameStarted) return;
+    state.gameStarted = true;
+    state.timerInterval = setInterval(() => {
+        state.timer++;
+        timerEl.textContent = formatTime(state.timer);
+    }, 1000);
+}
+
+function handleCardClick(el, card) {
+    // Guard clauses
+    if (state.isLocked) return;
+    if (el.classList.contains('flipped')) return;
+    if (state.flippedCards.length >= 2) return;
+
+    AudioSys.init();
+    if (!state.gameStarted) startTimer();
+
+    // Flip kartu
+    el.classList.add('flipped');
+    AudioSys.flip();
+    state.flippedCards.push({ el, card });
+
+    // Cek jika sudah 2 kartu terbuka
+    if (state.flippedCards.length === 2) {
+        state.moves++;
+        movesEl.textContent = state.moves;
+        checkMatch();
+    }
+}
+
+function checkMatch() {
+    state.isLocked = true;
+    const [first, second] = state.flippedCards;
+    const isMatch = first.card.pairId === second.card.pairId;
+
+    if (isMatch) {
+        AudioSys.match();
+        first.el.classList.add('matched');
+        second.el.classList.add('matched');
+        state.matchedPairs++;
+        state.flippedCards = [];
+        state.isLocked = false;
+
+        // Cek kemenangan
+        if (state.matchedPairs === 8) {
+            clearInterval(state.timerInterval);
+            setTimeout(() => {
+                AudioSys.win();
+                document.getElementById('final-time').textContent = formatTime(state.timer);
+                document.getElementById('final-moves').textContent = state.moves;
+                modalEl.classList.add('show');
+            }, 600);
+        }
+    } else {
+        AudioSys.wrong();
+        setTimeout(() => {
+            first.el.classList.remove('flipped');
+            second.el.classList.remove('flipped');
+            state.flippedCards = [];
+            state.isLocked = false;
+        }, 900);
+    }
+}
+
+// Inisialisasi saat load
+initGame();
+</script>
+</body>
+</html>
